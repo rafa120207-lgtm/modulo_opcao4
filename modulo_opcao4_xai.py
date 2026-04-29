@@ -43,7 +43,7 @@ nomes_features = {
 X = df[features]
 y = df['risco_alto']
 
-modelo = RandomForestClassifier(n_estimators=100, random_state=42)
+modelo = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
 modelo.fit(X, y)
 
 df['score_risco'] = modelo.predict_proba(X)[:, 1]
@@ -65,24 +65,40 @@ else:
 def explicar_equipamento(idx):
     nome  = df.loc[idx, 'equipamento']
     score = df.loc[idx, 'score_pct']
-    
-    # Converte idx do DataFrame para posição no array SHAP
+
     pos = df.index.get_loc(idx)
-    
     contribuicoes = sorted(
         zip(features, shap_risco[pos]),
         key=lambda x: abs(float(x[1])),
         reverse=True
     )
     total = sum(abs(float(v)) for _, v in contribuicoes[:3])
-    
-    print(f"\n  🔍 {nome} — Score de Risco: {score}%")
-    print(f"  Top 3 fatores que explicam esse risco:")
-    for feat, val in contribuicoes[:3]:
+
+    recomendacoes = {
+        'temp_ambiente_C':  'monitorar operação em horários de menor calor',
+        'temp_motor_C':     'verificar sistema de resfriamento do motor',
+        'velocidade_rpm':   'reduzir velocidade operacional imediatamente',
+        'torque_Nm':        'revisar esforço mecânico e carga de trabalho',
+        'horas_uso':        'agendar manutenção preventiva urgente',
+        'tipo_enc':         'avaliar adequação do equipamento à operação'
+    }
+
+    print(f"\n  🔍 Equipamento: {nome}")
+    print(f"  Score de Risco: {score}%")
+    print(f"\n  📊 Fatores que mais contribuem para o risco:")
+
+    fator_principal = None
+    for i, (feat, val) in enumerate(contribuicoes[:3]):
         pct     = round((abs(float(val)) / total) * 100, 1) if total > 0 else 0
         direcao = "↑ eleva" if float(val) > 0 else "↓ reduz"
         nome_f  = nomes_features.get(feat, feat)
-        print(f"    • {nome_f}: {pct}% ({direcao} o risco)")
+        print(f"    {i+1}. {nome_f}: {pct}% ({direcao} o risco)")
+        if i == 0:
+            fator_principal = feat
+
+    print(f"\n  💡 Recomendação Sompo Predict:")
+    print(f"     → {recomendacoes.get(fator_principal, 'revisar operação do equipamento')}")
+    print(f"     → Acionar técnico de manutenção antes da próxima operação")
 # ─────────────────────────────────────────
 # MÓDULO 4 — FUNÇÃO PRINCIPAL DO MENU CLI
 # ─────────────────────────────────────────
